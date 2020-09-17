@@ -6,6 +6,8 @@ import { writeFile, statSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { promisify } from 'util';
 
+import bytenode from 'bytenode'
+
 import { getSourceRoot } from '../../utils/workspace';
 import { normalizeMakingOptions } from '../../utils/normalize';
 
@@ -29,6 +31,7 @@ export interface MakeElectronBuilderOptions extends Configuration {
   root: string;
   out: string;
   publishPolicy?: PublishOptions["publish"];
+  compile: boolean;
 }
 
 export interface MakeElectronBuilderOutput extends BuilderOutput {
@@ -50,7 +53,12 @@ function run(rawOptions: JsonObject & MakeElectronBuilderOptions, context: Build
       addMissingDefaultOptions(options)
     ),
     concatMap(async (options) => {
-      await beforeBuild(options.root, options.name);
+
+      if (options.compile) {
+        await beforeBuildCompile(options.root, options.name);
+      } else {
+        await beforeBuild(options.root, options.name);
+      }
 
       const platforms: Platform[] = _createPlatforms(options.platform);
       const targets: Map<Platform, Map<Arch, string[]>> = _createTargets(platforms, null, options.arch);
@@ -70,6 +78,15 @@ function run(rawOptions: JsonObject & MakeElectronBuilderOptions, context: Build
 
 async function beforeBuild(appDir: string, appName: string) {
   await writeFileAsync(join(appDir, 'dist', 'apps', appName, 'index.js'), `const Main = require('./${appName}/main.js');`);
+}
+
+async function beforeBuildCompile(appDir: string, appName: string) {
+  // Output to main.jsc
+  bytenode.compileFile({
+    filename: join(appDir, 'dist', 'apps', appName, 'main.js')
+  });
+  
+  await writeFileAsync(join(appDir, 'dist', 'apps', appName, 'index.js'), `const Main = require('./${appName}/main.jsc');`);
 }
 
 function _createPlatforms(rawPlatforms: string | string[]): Platform[] {

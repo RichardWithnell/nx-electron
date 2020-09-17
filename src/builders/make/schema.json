@@ -50,6 +50,11 @@
       "default": null,
       "enum": ["onTag", "onTagOrDraft", "always", "never"],
       "description": "Package publish policy."
+    },
+    "compile": {
+      "type": "boolean",
+      "default": false,
+      "description": "Compile to bytecode."
     }
   },
   "required": ["name", "frontendProject"]
